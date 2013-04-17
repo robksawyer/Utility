@@ -1,13 +1,7 @@
 <?php
 /**
- * @copyright	Copyright 2006-2013, Miles Johnson - http://milesj.me
- * @license		http://opensource.org/licenses/mit-license.php - Licensed under the MIT License
- * @link		http://milesj.me/code/cakephp/utility
- */
-
-App::uses('ModelBehavior', 'Model');
-
-/**
+ * SluggableBehavior
+ *
  * A CakePHP behavior that will generate a slug based off of another field before an insert or update query.
  *
  * {{{
@@ -20,7 +14,15 @@ App::uses('ModelBehavior', 'Model');
  *			);
  * 		}
  * }}}
+ *
+ * @version		1.0.0
+ * @copyright	Copyright 2006-2012, Miles Johnson - http://milesj.me
+ * @license		http://opensource.org/licenses/mit-license.php - Licensed under the MIT License
+ * @link		http://milesj.me/code/cakephp/utility
  */
+
+App::uses('ModelBehavior', 'Model');
+
 class SluggableBehavior extends ModelBehavior {
 
 	/**
@@ -32,8 +34,8 @@ class SluggableBehavior extends ModelBehavior {
 	 * 	separator	- The separating character between words
 	 * 	length		- The max length of a slug
 	 * 	onUpdate	- Will update the slug when a record is updated
-	 * 	unique		- Whether to make the slug unique or not
 	 *
+	 * @access protected
 	 * @var array
 	 */
 	protected $_defaults = array(
@@ -42,13 +44,13 @@ class SluggableBehavior extends ModelBehavior {
 		'scope' => array(),
 		'separator' => '-',
 		'length' => 255,
-		'onUpdate' => true,
-		'unique' => true
+		'onUpdate' => true
 	);
 
 	/**
 	 * Merge settings.
 	 *
+	 * @access public
 	 * @param Model $model
 	 * @param array $settings
 	 */
@@ -59,15 +61,14 @@ class SluggableBehavior extends ModelBehavior {
 	/**
 	 * Generate a slug based on another field.
 	 *
+	 * @access public
 	 * @param Model $model
 	 * @return boolean
 	 */
 	public function beforeSave(Model $model) {
 		$settings = $this->settings[$model->alias];
 
-		if (empty($model->data[$model->alias]) ||
-			empty($model->data[$model->alias][$settings['field']]) ||
-			!empty($model->data[$model->alias][$settings['slug']])) {
+		if (empty($model->data[$model->alias]) || empty($model->data[$model->alias][$settings['field']])) {
 			return true;
 
 		} else if ($model->id && !$settings['onUpdate']) {
@@ -77,24 +78,20 @@ class SluggableBehavior extends ModelBehavior {
 		$slug = $model->data[$model->alias][$settings['field']];
 
 		if (method_exists($model, 'beforeSlug')) {
-			$slug = $model->beforeSlug($slug, $this);
+			$slug = $model->beforeSlug($slug);
 		}
 
 		$slug = $this->slugify($model, $slug);
 
 		if (method_exists($model, 'afterSlug')) {
-			$slug = $model->afterSlug($slug, $this);
+			$slug = $model->afterSlug($slug);
 		}
 
-		if (mb_strlen($slug) > ($settings['length'] - 3)) {
-			$slug = mb_substr($slug, 0, ($settings['length'] - 3));
+		if (mb_strlen($slug) > ($settings['length'] - 5)) {
+			$slug = substr($slug, 0, ($settings['length'] - 5));
 		}
 
-		if ($settings['unique']) {
-			$slug = $this->_makeUnique($model, $slug);
-		}
-
-		$model->data[$model->alias][$settings['slug']] = $slug;
+		$model->data[$model->alias][$settings['slug']] = $this->_makeUnique($model, $slug);
 
 		return true;
 	}
@@ -102,6 +99,7 @@ class SluggableBehavior extends ModelBehavior {
 	/**
 	 * Return a slugged version of a string.
 	 *
+	 * @access public
 	 * @param Model $model
 	 * @param string $string
 	 * @return string
@@ -118,13 +116,14 @@ class SluggableBehavior extends ModelBehavior {
 	/**
 	 * Validate the slug is unique by querying for other slugs.
 	 *
+	 * @access protected
 	 * @param Model $model
 	 * @param string $string
 	 * @return string
 	 */
 	protected function _makeUnique(Model $model, $string) {
 		$settings = $this->settings[$model->alias];
-		$conditions = array($settings['slug'] . ' LIKE' => $string . '%') + $settings['scope'];
+		$conditions = array($settings['slug'] . ' LIKE' => '%' . $string) + $settings['scope'];
 
 		if ($model->id) {
 			$conditions[$model->primaryKey . ' !='] = $model->id;

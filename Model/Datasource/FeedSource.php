@@ -1,6 +1,16 @@
 <?php
 /**
- * @copyright	Copyright 2006-2013, Miles Johnson - http://milesj.me
+ * FeedSource
+ *
+ * A DataSource that can read and parse web feeds and aggregate them into a single result.
+ * Supports RSS, RDF and Atom feed types.
+ *
+ * {{{
+ *		public $feed = array('datasource' => 'Utility.FeedSource');
+ * }}}
+ *
+ * @version		3.0.1
+ * @copyright	Copyright 2006-2012, Miles Johnson - http://milesj.me
  * @license		http://opensource.org/licenses/mit-license.php - Licensed under the MIT License
  * @link		http://milesj.me/code/cakephp/utility
  */
@@ -8,22 +18,14 @@
 App::uses('Folder', 'Utility');
 App::uses('DataSource', 'Model/Datasource');
 App::uses('HttpSocket', 'Network/Http');
+App::import('Vendor', 'Utility.TypeConverter');
 
-use Titon\Utility\Converter;
-
-/**
- * A DataSource that can read and parse web feeds and aggregate them into a single result.
- * Supports RSS, RDF and Atom feed types.
- *
- * {{{
- *		public $feed = array('datasource' => 'Utility.FeedSource');
- * }}}
- */
 class FeedSource extends DataSource {
 
 	/**
 	 * The processed feeds in array format.
 	 *
+	 * @access protected
 	 * @var array
 	 */
 	protected $_feeds = array();
@@ -31,6 +33,7 @@ class FeedSource extends DataSource {
 	/**
 	 * Apply the cache settings.
 	 *
+	 * @access public
 	 * @param array $config
 	 */
 	public function __construct($config = array()) {
@@ -57,6 +60,7 @@ class FeedSource extends DataSource {
 	/**
 	 * Describe the supported feeds.
 	 *
+	 * @access public
 	 * @param Model|string $model
 	 * @return array
 	 */
@@ -67,6 +71,7 @@ class FeedSource extends DataSource {
 	/**
 	 * Return a list of aggregated feed URLs.
 	 *
+	 * @access public
 	 * @param array $data
 	 * @return array
 	 */
@@ -77,12 +82,12 @@ class FeedSource extends DataSource {
 	/**
 	 * Grab the feeds through an HTTP request and parse it into an array.
 	 *
+	 * @access public
 	 * @param Model $model
 	 * @param array $queryData
-	 * @param int $recursive
 	 * @return array
 	 */
-	public function read(Model $model, $queryData = array(), $recursive = null) {
+	public function read(Model $model, $queryData = array()) {
 		$query = $queryData;
 		$defaults = array(
 			'root' => '',
@@ -101,16 +106,12 @@ class FeedSource extends DataSource {
 		$query['feed']['sort'] = 'date';
 
 		if (isset($query['order'][0])) {
-			$order = $query['order'][0];
-
-			if (is_array($order)) {
-				foreach ($order as $sort => $o) {
-					$query['feed']['sort'] = $sort;
-					$query['feed']['order'] = strtoupper($o);
-					break;
-				}
+			if (is_array($query['order'][0])) {
+				$sort = array_keys($query['order'][0]);
+				$query['feed']['sort'] = $sort[0];
+				$query['feed']['order'] = strtoupper($query['order'][0][$query['feed']['sort']]);
 			} else {
-				$query['feed']['order'] = strtoupper($order);
+				$query['feed']['order'] = strtoupper($query['order'][0]);
 			}
 		}
 
@@ -163,7 +164,7 @@ class FeedSource extends DataSource {
 
 				$results = array_filter($results);
 
-				if ($query['feed']['order'] === 'ASC') {
+				if ($query['feed']['order'] == 'ASC') {
 					krsort($results);
 				} else {
 					ksort($results);
@@ -184,6 +185,7 @@ class FeedSource extends DataSource {
 	/**
 	 * Extracts a certain value from a node.
 	 *
+	 * @access protected
 	 * @param string $item
 	 * @param array $keys
 	 * @return string
@@ -203,21 +205,22 @@ class FeedSource extends DataSource {
 					}
 				}
 			}
+		} else {
+			return trim($item);
 		}
-
-		return trim($item);
 	}
 
 	/**
 	 * Processes the feed and rebuilds an array based on the feeds type (RSS, RDF, Atom).
 	 *
+	 * @access protected
 	 * @param HttpResponse $response
 	 * @param array $query
 	 * @param string $source
 	 * @return boolean
 	 */
 	protected function _process(HttpResponse $response, $query, $source) {
-		$feed = Converter::toArray($response->body());
+		$feed = TypeConverter::toArray($response->body());
 		$clean = array();
 
 		if (!empty($query['root']) && !empty($feed[$query['feed']['root']])) {
@@ -244,7 +247,7 @@ class FeedSource extends DataSource {
 
 		// Gather elements
 		$elements = array(
-			'title' => array('title'),
+			'title',
 			'guid' => array('guid', 'id'),
 			'date' => array('date', 'pubDate', 'published', 'updated'),
 			'link' => array('link', 'origLink'),
@@ -263,6 +266,11 @@ class FeedSource extends DataSource {
 			$data = array();
 
 			foreach ($elements as $element => $keys) {
+				if (is_numeric($element)) {
+					$element = $keys;
+					$keys = array($keys);
+				}
+
 				if (isset($keys['attributes'])) {
 					$attributes = $keys['attributes'];
 					unset($keys['attributes']);
@@ -276,7 +284,9 @@ class FeedSource extends DataSource {
 
 				foreach ($keys as $key) {
 					if (isset($item[$key]) && empty($data[$element])) {
-						if ($value = $this->_extract($item[$key], $attributes)) {
+						$value = $this->_extract($item[$key], $attributes);
+
+						if (!empty($value)) {
 							$data[$element] = $value;
 							break;
 						}
@@ -285,7 +295,7 @@ class FeedSource extends DataSource {
 			}
 
 			if (empty($data['link'])) {
-				trigger_error(sprintf('Feed %s does not have a valid link element', $source), E_USER_NOTICE);
+				trigger_error(sprintf('Feed %s does not have a valid link element.', $source), E_USER_NOTICE);
 				continue;
 			}
 
@@ -293,21 +303,18 @@ class FeedSource extends DataSource {
 				$data['source'] = (string) $source;
 			}
 
-			// Determine how to sort
-			$sortBy = $query['feed']['sort'];
+			$sort = null;
 
-			if (isset($data[$sortBy])) {
-				$sort = $data[$sortBy];
-			} else if (isset($data['date'])) {
-				$sort = $data['date'];
-			} else {
-				$sort = null;
+			if (isset($data[$query['feed']['sort']])) {
+				$sort = $data[$query['feed']['sort']];
 			}
 
-			if ($sortBy === 'date' && $sort) {
-				$sort = strtotime($sort);
-			} else if (!$sort) {
-				$sort = microtime();
+			if (!$sort) {
+				if ($query['feed']['sort'] == 'date' && isset($data['date'])) {
+					$sort = strtotime($data['date']);
+				} else {
+					$sort = microtime();
+				}
 			}
 
 			if ($data) {
@@ -321,24 +328,25 @@ class FeedSource extends DataSource {
 	/**
 	 * Truncates the feed to a certain length.
 	 *
+	 * @access protected
 	 * @param array $feed
 	 * @param int $count
 	 * @return array
 	 */
 	protected function _truncate($feed, $count = null) {
-		if (!$feed) {
+		if (empty($feed)) {
 			return $feed;
 		}
 
-		if ($count === null) {
+		if (!is_numeric($count)) {
 			$count = 20;
 		}
 
-		if ($count && count($feed) > $count) {
+		if (count($feed) > $count) {
 			$feed = array_slice($feed, 0, $count);
 		}
 
-		return array_values($feed);
+		return $feed;
 	}
 
 }

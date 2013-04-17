@@ -1,13 +1,7 @@
 <?php
 /**
- * @copyright	Copyright 2006-2013, Miles Johnson - http://milesj.me
- * @license		http://opensource.org/licenses/mit-license.php - Licensed under the MIT License
- * @link		http://milesj.me/code/cakephp/utility
- */
-
-App::uses('ModelBehavior', 'Model');
-
-/**
+ * SpamBlockerBehavior
+ *
  * A CakePHP Behavior that moderates and validates comments to check for spam.
  * Validation is based on a point system where high points equal an automatic approval and low points are marked as spam or deleted.
  *
@@ -28,7 +22,16 @@ App::uses('ModelBehavior', 'Model');
  *			INDEX (`article_id`)
  *		) ENGINE = InnoDB CHARACTER SET utf8 COLLATE utf8_general_ci;
  * }}}
+ *
+ * @version		3.0.0
+ * @copyright	Copyright 2006-2012, Miles Johnson - http://milesj.me
+ * @license		http://opensource.org/licenses/mit-license.php - Licensed under the MIT License
+ * @link		http://milesj.me/code/cakephp/utility
+ * @link        http://snook.ca/archives/other/effective_blog_comment_spam_blocker/
  */
+
+App::uses('ModelBehavior', 'Model');
+
 class SpamBlockerBehavior extends ModelBehavior {
 
 	/**
@@ -47,10 +50,11 @@ class SpamBlockerBehavior extends ModelBehavior {
 	 *	columnMap		- Names for table columns within the comments table and the parent
 	 * 	statusMap		- Status codes for the enum (or integer) status column
 	 *
+	 * @access protected
 	 * @var array
 	 */
 	protected $_defaults = array(
-		'model' => 'article',
+		'model' => 'Article',
 		'link' => '',
 		'email' => '',
 		'useSlug' => false,
@@ -87,6 +91,7 @@ class SpamBlockerBehavior extends ModelBehavior {
 	/**
 	 * Merge settings.
 	 *
+	 * @access public
 	 * @param Model $model
 	 * @param array $settings
 	 * @return void
@@ -98,6 +103,7 @@ class SpamBlockerBehavior extends ModelBehavior {
 	/**
 	 * Runs before a save and marks the content as spam or regular comment.
 	 *
+	 * @access public
 	 * @param Model $model
 	 * @return boolean
 	 */
@@ -170,7 +176,7 @@ class SpamBlockerBehavior extends ModelBehavior {
 			// Keyword search
 			// -1 per blacklisted keyword
 			foreach ($settings['keywords'] as $keyword) {
-				if (mb_stripos($content, $keyword) !== false) {
+				if (stripos($content, $keyword) !== false) {
 					--$points;
 				}
 			}
@@ -181,18 +187,18 @@ class SpamBlockerBehavior extends ModelBehavior {
 			// -1 if more then 30 chars
 			foreach ($links as $link) {
 				foreach ($settings['blacklist'] as $character) {
-					if (mb_stripos($link, $character) !== false) {
+					if (stripos($link, $character) !== false) {
 						--$points;
 					}
 				}
 
 				foreach ($settings['keywords'] as $keyword) {
-					if (mb_stripos($link, $keyword) !== false) {
+					if (stripos($link, $keyword) !== false) {
 						--$points;
 					}
 				}
 
-				if (mb_strlen($link) >= 30) {
+				if (strlen($link) >= 30) {
 					--$points;
 				}
 			}
@@ -200,24 +206,24 @@ class SpamBlockerBehavior extends ModelBehavior {
 			// Check the website, author and comment for blacklisted
 			// -1 per instance
 			foreach ($settings['blacklist'] as $character) {
-				if (mb_stripos($website, $character) !== false) {
+				if (stripos($website, $character) !== false) {
 					--$points;
 				}
 			}
 
 			foreach ($settings['keywords'] as $keyword) {
-				if (mb_stripos($author, $keyword) !== false) {
+				if (stripos($author, $keyword) !== false) {
 					--$points;
 				}
 
-				if (mb_stripos($content, $keyword) !== false) {
+				if (stripos($content, $keyword) !== false) {
 					--$points;
 				}
 			}
 
 			// Body starts with...
 			// -10 points
-			if ($pos = mb_stripos($content, ' ')) {
+			if ($pos = stripos($content, ' ')) {
 				$firstWord = mb_substr($content, 0, $pos);
 			} else {
 				$firstWord = trim($content);
@@ -231,7 +237,7 @@ class SpamBlockerBehavior extends ModelBehavior {
 
 			// Author name has http:// in it
 			// -2 points
-			if (mb_stripos($author, 'http://') !== false) {
+			if (stripos($author, 'http://') !== false) {
 				$points = $points - 2;
 			}
 
@@ -291,6 +297,7 @@ class SpamBlockerBehavior extends ModelBehavior {
 	/**
 	 * Sends out an email notifying you of a new comment.
 	 *
+	 * @access public
 	 * @param Model $model
 	 * @param array $data
 	 * @param array $status
@@ -309,7 +316,7 @@ class SpamBlockerBehavior extends ModelBehavior {
 			}
 
 			// Get result from foreign model
-			$article = ClassRegistry::init(Inflector::classify($settings['model']));
+			$article = ClassRegistry::init($settings['model']);
 			$result = $article->find('first', array(
 				'fields' => $fields,
 				'conditions' => array($columnMap['id'] => $data[$columnMap['foreignKey']]),

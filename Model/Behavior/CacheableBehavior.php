@@ -1,14 +1,7 @@
 <?php
 /**
- * @copyright	Copyright 2006-2013, Miles Johnson - http://milesj.me
- * @license		http://opensource.org/licenses/mit-license.php - Licensed under the MIT License
- * @link		http://milesj.me/code/cakephp/utility
- */
-
-App::uses('ModelBehavior', 'Model');
-App::uses('Folder', 'Utility');
-
-/**
+ * CacheableBehavior
+ *
  * A CakePHP Behavior that will automatically read, write and delete cache for Model database queries.
  * When Model::find() is called and the cache parameter is passed, the data will be written.
  * When Model::create() or Model::update() is called, the cache key with the associated Model::$id will be written.
@@ -36,7 +29,16 @@ App::uses('Folder', 'Utility');
  * 			}
  * 		}
  * }}}
+ *
+ * @version		1.0.0
+ * @copyright	Copyright 2006-2012, Miles Johnson - http://milesj.me
+ * @license		http://opensource.org/licenses/mit-license.php - Licensed under the MIT License
+ * @link		http://milesj.me/code/cakephp/utility
  */
+
+App::uses('ModelBehavior', 'Model');
+App::uses('Folder', 'Utility');
+
 class CacheableBehavior extends ModelBehavior {
 
 	/**
@@ -51,6 +53,7 @@ class CacheableBehavior extends ModelBehavior {
 	 * 	events			- Toggle cache reset events for specific conditions
 	 * 	resetHooks		- Mapping of cache keys and arguments to reset with
 	 *
+	 * @access protected
 	 * @var array
 	 */
 	protected $_defaults = array(
@@ -58,11 +61,10 @@ class CacheableBehavior extends ModelBehavior {
 		'dbConfig' => 'shim',
 		'expires' => '+5 minutes',
 		'prefix' => '',
-		'appendKey' => false,
+		'appendKey' => 'Cacheable',
 		'methodKeys' => array(
 			'getAll' => 'getAll',
 			'getList' => 'getList',
-			'getCount' => 'getCount',
 			'getById' => 'getById',
 			'getBySlug' => 'getBySlug'
 		),
@@ -74,7 +76,6 @@ class CacheableBehavior extends ModelBehavior {
 		'resetHooks' => array(
 			'getAll' => true,
 			'getList' => true,
-			'getCount' => true,
 			'getById' => array('id'),
 			'getBySlug' => array('slug')
 		)
@@ -83,6 +84,7 @@ class CacheableBehavior extends ModelBehavior {
 	/**
 	 * Is the current query attempting to cache.
 	 *
+	 * @access protected
 	 * @var boolean
 	 */
 	protected $_isCaching = false;
@@ -90,6 +92,7 @@ class CacheableBehavior extends ModelBehavior {
 	/**
 	 * The key and expires parameters for the current query.
 	 *
+	 * @access protected
 	 * @var array
 	 */
 	protected $_currentQuery = array();
@@ -97,6 +100,7 @@ class CacheableBehavior extends ModelBehavior {
 	/**
 	 * The Model's DB config before caching begins.
 	 *
+	 * @access protected
 	 * @var string
 	 */
 	protected $_previousDbConfig;
@@ -104,6 +108,7 @@ class CacheableBehavior extends ModelBehavior {
 	/**
 	 * Cached results for the current request.
 	 *
+	 * @access protected
 	 * @var array
 	 */
 	protected $_cached = array();
@@ -111,6 +116,7 @@ class CacheableBehavior extends ModelBehavior {
 	/**
 	 * Merge settings.
 	 *
+	 * @access public
 	 * @param Model $model
 	 * @param array $settings
 	 * @return void
@@ -142,6 +148,7 @@ class CacheableBehavior extends ModelBehavior {
 	/**
 	 * When this behavior is unloaded, delete all associated cache.
 	 *
+	 * @access public
 	 * @param Model $model
 	 * @return void
 	 */
@@ -161,6 +168,7 @@ class CacheableBehavior extends ModelBehavior {
 	 * If the result is empty or the cache doesn't exist, replace the current datasource
 	 * with a dummy shim datasource, allowing us to pull in cached results.
 	 *
+	 * @access public
 	 * @param Model $model
 	 * @param array $query
 	 * @return array|boolean
@@ -231,6 +239,7 @@ class CacheableBehavior extends ModelBehavior {
 	 * If caching was enabled in beforeFind(), return the cached results.
 	 * If the cache is empty, write a new cache with the results from the find().
 	 *
+	 * @access public
 	 * @param Model $model
 	 * @param mixed $results
 	 * @param boolean $primary
@@ -268,41 +277,22 @@ class CacheableBehavior extends ModelBehavior {
 	/**
 	 * Once a record has been updated or created, cache the results if the specific events allow it.
 	 *
+	 * @access public
 	 * @param Model $model
 	 * @param boolean $created
 	 * @return boolean
 	 */
 	public function afterSave(Model $model, $created = true) {
 		$id = $model->id;
-		$settings = $this->settings[$model->alias];
-		$events = $settings['events'];
+		$key = $this->settings[$model->alias]['methodKeys']['getById'];
+		$events = $this->settings[$model->alias]['events'];
 
-		// Use slug if that's the primary
-		if ($model->primaryKey === 'slug') {
-			$method = $settings['methodKeys']['getBySlug'];
-		} else {
-			$method = $settings['methodKeys']['getById'];
+		if ($id && $key && (($created && $events['onCreate']) || (!$created && $events['onUpdate']))) {
+			$this->writeCache($model, array($model->alias . '::' . $key, $id), array($model->read(null, $id)));
 		}
 
-		// Refresh the cache during update/create
-		if ($id && $method && (($created && $events['onCreate']) || (!$created && $events['onUpdate']))) {
-			$cacheKey = array($model->alias . '::' . $method, $id);
-
-			if (method_exists($model, $method)) {
-				$this->deleteCache($model, $cacheKey);
-				call_user_func(array($model, $method), $id);
-
-			} else {
-				$this->writeCache($model, $cacheKey, array($model->read(null, $id)));
-			}
-		}
-
-		if ($getList = $settings['methodKeys']['getList']) {
+		if ($getList = $this->settings[$model->alias]['methodKeys']['getList']) {
 			$this->deleteCache($model, array($model->alias . '::' . $getList));
-		}
-
-		if ($getCount = $settings['methodKeys']['getCount']) {
-			$this->deleteCache($model, array($model->alias . '::' . $getCount));
 		}
 
 		return $created;
@@ -311,6 +301,7 @@ class CacheableBehavior extends ModelBehavior {
 	/**
 	 * Once a record has been deleted, remove the cached result.
 	 *
+	 * @access public
 	 * @param Model $model
 	 * @return boolean
 	 */
@@ -326,23 +317,28 @@ class CacheableBehavior extends ModelBehavior {
 	 * Cache data by using a Closure callback to generate the result set.
 	 * This method can be used within other methods in place the of the find() approach.
 	 *
+	 * @access public
 	 * @param Model $model
 	 * @param array|string $keys
 	 * @param Closure $callback
 	 * @param string $expires
 	 * @return mixed
-	 * @throws InvalidArgumentException
+	 * @throws Exception
 	 */
-	public function cache(Model $model, $keys, Closure $callback, $expires = null) {
+	public function cache(Model $model, $keys, $callback, $expires = null) {
+		if (!($callback instanceof Closure)) {
+			throw new Exception(sprintf('A Closure is required for %s.', __METHOD__));
+		}
+
 		if (Configure::read('Cache.disable')) {
-			return $callback($model);
+			return $callback($this);
 		}
 
 		$key = $this->cacheKey($model, $keys);
 		$results = $this->readCache($model, $key);
 
 		if (!$results) {
-			$results = $callback($model);
+			$results = $callback($this);
 
 			$this->writeCache($model, $key, $results, $expires);
 		}
@@ -353,6 +349,7 @@ class CacheableBehavior extends ModelBehavior {
 	/**
 	 * Generate a cache key. The first index should be the method name, the other indices should be unique values.
 	 *
+	 * @access public
 	 * @param Model $model
 	 * @param array|string $keys
 	 * @param boolean $prefix
@@ -392,87 +389,17 @@ class CacheableBehavior extends ModelBehavior {
 	}
 
 	/**
-	 * Convenience model method for returning all records.
-	 *
-	 * @param Model $model
-	 * @return array
-	 */
-	public function getAll(Model $model) {
-		return $model->find('all', array(
-			'cache' => $model->alias . '::getAll',
-			'cacheExpires' => $this->getExpiration($model)
-		));
-	}
-
-	/**
-	 * Convenience model method for returning all records as a list.
-	 *
-	 * @param Model $model
-	 * @return array
-	 */
-	public function getList(Model $model) {
-		return $model->find('list', array(
-			'cache' => $model->alias . '::getList',
-			'cacheExpires' => $this->getExpiration($model)
-		));
-	}
-
-	/**
-	 * Convenience model method for returning a count of all records.
-	 *
-	 * @param Model $model
-	 * @return array
-	 */
-	public function getCount(Model $model) {
-		return $model->find('count', array(
-			'cache' => $model->alias . '::getCount',
-			'cacheExpires' => $this->getExpiration($model)
-		));
-	}
-
-	/**
-	 * Convenience model method for returning a record by ID.
-	 *
-	 * @param Model $model
-	 * @param int $id
-	 * @return array
-	 */
-	public function getById(Model $model, $id) {
-		return $model->find('first', array(
-			'conditions' => array($model->alias . '.' . $model->primaryKey => $id),
-			'contain' => array_keys($model->belongsTo),
-			'cache' => array($model->alias . '::getById', $id),
-			'cacheExpires' => $this->getExpiration($model)
-		));
-	}
-
-	/**
-	 * Convenience model method for returning a record by slug.
-	 *
-	 * @param Model $model
-	 * @param string $slug
-	 * @return array
-	 */
-	public function getBySlug(Model $model, $slug) {
-		return $model->find('first', array(
-			'conditions' => array($model->alias . '.slug' => $slug),
-			'contain' => array_keys($model->belongsTo),
-			'cache' => array($model->alias . '::getBySlug', $slug),
-			'cacheExpires' => $this->getExpiration($model)
-		));
-	}
-
-	/**
 	 * Return the expiration time for cache. Either used the passed value, or the settings default.
 	 *
+	 * @access public
 	 * @param Model $model
 	 * @param mixed $expires
 	 * @return int|string
 	 */
 	public function getExpiration(Model $model, $expires = null) {
 		if (!$expires) {
-			if ($time = $this->settings[$model->alias]['expires']) {
-				$expires = $time;
+			if ($this->settings[$model->alias]['expires']) {
+				$expires = $this->settings[$model->alias]['expires'];
 			} else {
 				$expires = '+5 minutes';
 			}
@@ -484,6 +411,7 @@ class CacheableBehavior extends ModelBehavior {
 	/**
 	 * Read data from the cache.
 	 *
+	 * @access public
 	 * @param Model $model
 	 * @param array|string $keys
 	 * @return mixed
@@ -495,6 +423,7 @@ class CacheableBehavior extends ModelBehavior {
 	/**
 	 * Write data to the cache. Be sure to parse the cache key and validate the config and expires.
 	 *
+	 * @access public
 	 * @param Model $model
 	 * @param array|string $keys
 	 * @param mixed $value
@@ -510,6 +439,7 @@ class CacheableBehavior extends ModelBehavior {
 	/**
 	 * Delete a cached item based on the defined key(s).
 	 *
+	 * @access public
 	 * @param Model $model
 	 * @param array|string $keys
 	 * @return boolean
@@ -522,6 +452,7 @@ class CacheableBehavior extends ModelBehavior {
 	 * Global function to reset specific cache keys within each model. By default, reset the getById and getList method keys.
 	 * If the ID passed is an array of IDs, run through each hook and reset those caches only if each field exists.
 	 *
+	 * @access public
 	 * @param Model $model
 	 * @param string|array $id
 	 * @return boolean
@@ -531,10 +462,6 @@ class CacheableBehavior extends ModelBehavior {
 
 		if ($getList = $this->settings[$alias]['methodKeys']['getList']) {
 			$this->deleteCache($model, array($alias . '::' . $getList));
-		}
-
-		if ($getCount = $this->settings[$alias]['methodKeys']['getCount']) {
-			$this->deleteCache($model, array($alias . '::' . $getCount));
 		}
 
 		if (!$id) {
@@ -574,6 +501,7 @@ class CacheableBehavior extends ModelBehavior {
 	/**
 	 * Clear all the currently cached items.
 	 *
+	 * @access public
 	 * @param Model $model
 	 * @return boolean
 	 */

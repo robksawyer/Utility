@@ -1,29 +1,24 @@
 <?php
 /**
- * @copyright	Copyright 2006-2013, Miles Johnson - http://milesj.me
+ * BreadcrumbHelper
+ *
+ * A CakePHP Helper that provides basic functionality for generating breadcrumb lists.
+ * Can be used to grab the first or last crumb, or generate a string of crumbs for use in page titles.
+ *
+ * @version		1.0.0
+ * @copyright	Copyright 2006-2012, Miles Johnson - http://milesj.me
  * @license		http://opensource.org/licenses/mit-license.php - Licensed under the MIT License
  * @link		http://milesj.me/code/cakephp/utility
  */
 
-App::uses('AppHelper', 'View/Helper');
+App::uses('Helper', 'View/Helper');
 
-/**
- * A CakePHP Helper that provides basic functionality for generating breadcrumb lists.
- * Can be used to grab the first or last crumb, or generate a string of crumbs for use in page titles.
- * Will also couple with the OpenGraphHelper for extra convenience.
- */
-class BreadcrumbHelper extends AppHelper {
-
-	/**
-	 * Helpers.
-	 *
-	 * @var array
-	 */
-	public $helpers = array('Utility.OpenGraph');
+class BreadcrumbHelper extends Helper {
 
 	/**
 	 * List of breadcrumbs.
 	 *
+	 * @access protected
 	 * @var array
 	 */
 	protected $_crumbs = array();
@@ -31,55 +26,18 @@ class BreadcrumbHelper extends AppHelper {
 	/**
 	 * Add a breadcrumb to the list.
 	 *
+	 * @access public
 	 * @param string $title
 	 * @param string|array $url
 	 * @param array $options
 	 * @return BreadcrumbHelper
 	 */
 	public function add($title, $url, array $options = array()) {
-		$this->append($title, $url, $options);
-
-		return $this;
-	}
-
-	/**
-	 * Add a breadcrumb to the end of the list.
-	 *
-	 * @param string $title
-	 * @param string|array $url
-	 * @param array $options
-	 * @return BreadcrumbHelper
-	 */
-	public function append($title, $url, array $options = array()) {
 		$this->_crumbs[] = array(
-			'title' => strip_tags($title),
+			'title' => $title,
 			'url' => $url,
 			'options' => $options
 		);
-
-		$this->OpenGraph->title($this->pageTitle(null, array('reverse' => true)));
-		$this->OpenGraph->uri($url);
-
-		return $this;
-	}
-
-	/**
-	 * Add a breadcrumb to the beginning of the list.
-	 *
-	 * @param string $title
-	 * @param string|array $url
-	 * @param array $options
-	 * @return BreadcrumbHelper
-	 */
-	public function prepend($title, $url, array $options = array()) {
-		array_unshift($this->_crumbs, array(
-			'title' => strip_tags($title),
-			'url' => $url,
-			'options' => $options
-		));
-
-		$this->OpenGraph->title($this->pageTitle(null, array('reverse' => true)));
-		$this->OpenGraph->uri($url);
 
 		return $this;
 	}
@@ -87,6 +45,7 @@ class BreadcrumbHelper extends AppHelper {
 	/**
 	 * Return the list of breadcrumbs.
 	 *
+	 * @access public
 	 * @param string $key
 	 * @return array
 	 */
@@ -107,6 +66,7 @@ class BreadcrumbHelper extends AppHelper {
 	/**
 	 * Return the first crumb in the list.
 	 *
+	 * @access public
 	 * @param string $key
 	 * @return mixed
 	 */
@@ -125,6 +85,7 @@ class BreadcrumbHelper extends AppHelper {
 	/**
 	 * Return the last crumb in the list.
 	 *
+	 * @access public
 	 * @param string $key
 	 * @return mixed
 	 */
@@ -143,6 +104,7 @@ class BreadcrumbHelper extends AppHelper {
 	/**
 	 * Generate a page title based off the current crumbs.
 	 *
+	 * @access public
 	 * @param string $base
 	 * @param array $options
 	 * @return string
@@ -160,7 +122,8 @@ class BreadcrumbHelper extends AppHelper {
 
 		if ($count) {
 			if ($options['depth'] && $count > $options['depth']) {
-				$title = array_slice($crumbs, -$options['depth']);
+				$depth = $options['depth'] - 1;
+				$title = array_slice($crumbs, -$depth);
 				array_unshift($title, array_shift($crumbs));
 
 			} else {
@@ -171,15 +134,15 @@ class BreadcrumbHelper extends AppHelper {
 			$title[] = $pageTitle;
 		}
 
-		if ($options['reverse']) {
-			$title = array_reverse($title);
-		}
-
 		if ($base) {
 			array_unshift($title, $base);
 		}
 
-		return implode($options['separator'], array_unique($title));
+		if ($options['reverse']) {
+			$title = array_reverse($title);
+		}
+
+		return implode($options['separator'], $title);
 	}
 
 }

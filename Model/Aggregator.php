@@ -1,20 +1,23 @@
 <?php
 /**
- * @copyright	Copyright 2006-2013, Miles Johnson - http://milesj.me
+ * Aggregator
+ *
+ * A Modal that connects to the FeedSource and defines a custom find() function specific to feed aggregation.
+ *
+ * @version		1.0.0
+ * @copyright	Copyright 2006-2012, Miles Johnson - http://milesj.me
  * @license		http://opensource.org/licenses/mit-license.php - Licensed under the MIT License
  * @link		http://milesj.me/code/cakephp/utility
  */
 
-App::uses('AppModel', 'Model');
+App::uses('Model', 'Model');
 
-/**
- * A Modal that connects to the FeedSource and defines a custom find() function specific to feed aggregation.
- */
-class Aggregator extends AppModel {
+class Aggregator extends Model {
 
 	/**
 	 * No database table needed.
 	 *
+	 * @access public
 	 * @var boolean
 	 */
 	public $useTable = false;
@@ -22,6 +25,7 @@ class Aggregator extends AppModel {
 	/**
 	 * Use FeedSource.
 	 *
+	 * @access public
 	 * @var boolean
 	 */
 	public $useDbConfig = 'feed';
@@ -30,12 +34,13 @@ class Aggregator extends AppModel {
 	 * Overwrite the find method to be specific for feed aggregation.
 	 * Set the default settings and prepare the URLs.
 	 *
+	 * @access public
 	 * @param string $type
-	 * @param array $query
+	 * @param array $options
 	 * @return array
 	 */
-	public function find($type = 'first', $query = array()) {
-		$query = $query + array(
+	public function find($type, array $options = array()) {
+		$options = $options + array(
 			'fields' => array(),
 			'order' => array('date' => 'ASC'),
 			'limit' => 20,
@@ -46,12 +51,13 @@ class Aggregator extends AppModel {
 			)
 		);
 
-		return parent::find($type, $query);
+		return parent::find($type, $options);
 	}
 
 	/**
 	 * Format the date a certain way.
 	 *
+	 * @access public
 	 * @param array $results
 	 * @param boolean $primary
 	 * @return array

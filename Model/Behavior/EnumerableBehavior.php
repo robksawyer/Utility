@@ -1,13 +1,7 @@
 <?php
 /**
- * @copyright	Copyright 2006-2013, Miles Johnson - http://milesj.me
- * @license		http://opensource.org/licenses/mit-license.php - Licensed under the MIT License
- * @link		http://milesj.me/code/cakephp/utility
- */
-
-App::uses('ModelBehavior', 'Model');
-
-/**
+ * EnumerableBehavior
+ *
  * A CakePHP Behavior that emulates enumerable fields within the model. Each model that contains an enum field
  * (a field of multiple designated values), should define an $enum map and associated constants.
  *
@@ -38,7 +32,15 @@ App::uses('ModelBehavior', 'Model');
  * 		// Find all users by status
  * 		$user->findByStatus(User::PENDING);
  * }}}
+ *
+ * @version		1.0.0
+ * @copyright	Copyright 2006-2012, Miles Johnson - http://milesj.me
+ * @license		http://opensource.org/licenses/mit-license.php - Licensed under the MIT License
+ * @link		http://milesj.me/code/cakephp/utility
  */
+
+App::uses('ModelBehavior', 'Model');
+
 class EnumerableBehavior extends ModelBehavior {
 
 	/**
@@ -51,6 +53,7 @@ class EnumerableBehavior extends ModelBehavior {
 	/**
 	 * Persist the value in the response by appending a new field named <field><suffix>.
 	 *
+	 * @access public
 	 * @var array
 	 */
 	public $persist = true;
@@ -58,13 +61,15 @@ class EnumerableBehavior extends ModelBehavior {
 	/**
 	 * Should we replace all enum fields with the respective mapped value.
 	 *
+	 * @access public
 	 * @var boolean
 	 */
-	public $format = self::APPEND;
+	public $format = self::REPLACE;
 
 	/**
 	 * Toggle the replacing of raw values with enum values when a record is being updated (checks Model::$id).
 	 *
+	 * @access public
 	 * @var boolean
 	 */
 	public $onUpdate = false;
@@ -72,6 +77,7 @@ class EnumerableBehavior extends ModelBehavior {
 	/**
 	 * The suffix to append to the persisted value.
 	 *
+	 * @access public
 	 * @var string
 	 */
 	public $suffix = '_enum';
@@ -79,6 +85,7 @@ class EnumerableBehavior extends ModelBehavior {
 	/**
 	 * The enums for all models.
 	 *
+	 * @access protected
 	 * @var array
 	 */
 	protected $_enums = array();
@@ -86,6 +93,7 @@ class EnumerableBehavior extends ModelBehavior {
 	/**
 	 * Store the settings and Model::$enum.
 	 *
+	 * @access public
 	 * @param Model $model
 	 * @param array $settings
 	 * @throws InvalidArgumentException
@@ -113,25 +121,25 @@ class EnumerableBehavior extends ModelBehavior {
 	/**
 	 * Helper method for grabbing and filtering the enum from the model.
 	 *
+	 * @access public
 	 * @param Model|string $model
 	 * @param string $key
 	 * @param mixed $value
 	 * @return mixed
-	 * @throws InvalidArgumentException
-	 * @throws OutOfBoundsException
+	 * @throws Exception
 	 */
 	public function enum($model, $key = null, $value = null) {
 		$alias = is_string($model) ? $model : $model->alias;
 
 		if (!isset($this->_enums[$alias])) {
-			throw new InvalidArgumentException(sprintf('%s::$enum does not exist', $alias));
+			throw new Exception(sprintf('%s::$enum does not exist.', $alias));
 		}
 
 		$enum = $this->_enums[$alias];
 
 		if ($key) {
 			if (!isset($enum[$key])) {
-				throw new OutOfBoundsException(sprintf('Field %s does not exist within %s::$enum', $key, $model->alias));
+				throw new Exception(sprintf('Field %s does not exist within %s::$enum.', $key, $model->alias));
 			}
 
 			if ($value !== null) {
@@ -148,6 +156,7 @@ class EnumerableBehavior extends ModelBehavior {
 	 * Generate select options based on the enum fields which will be used for form input auto-magic.
 	 * If a Controller is passed, it will auto-set the data to the views.
 	 *
+	 * @access public
 	 * @param Model $model
 	 * @param Controller|null $controller
 	 * @return array
@@ -173,19 +182,19 @@ class EnumerableBehavior extends ModelBehavior {
 	/**
 	 * Format the results by replacing all enum fields with their respective value replacement.
 	 *
+	 * @access public
 	 * @param Model $model
 	 * @param array $results
 	 * @param boolean $primary
 	 * @return mixed
 	 */
 	public function afterFind(Model $model, $results, $primary = true) {
-		$alias = $model->alias;
-
-		if (!$this->format || ($model->id && !$this->onUpdate) || empty($this->_enums[$alias])) {
+		if (!$this->format || ($model->id && !$this->onUpdate)) {
 			return $results;
 		}
 
 		if ($results) {
+			$alias = $model->alias;
 			$enum = $this->_enums[$alias];
 
 			foreach ($results as &$result) {

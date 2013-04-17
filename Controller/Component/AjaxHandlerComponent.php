@@ -1,22 +1,24 @@
 <?php
 /**
- * @copyright	Copyright 2006-2013, Miles Johnson - http://milesj.me
+ * AjaxHandlerComponent
+ *
+ * A CakePHP Component that will automatically handle and render AJAX calls and apply the appropriate returned format and headers.
+ *
+ * @version		2.0.1
+ * @copyright	Copyright 2006-2012, Miles Johnson - http://milesj.me
  * @license		http://opensource.org/licenses/mit-license.php - Licensed under the MIT License
  * @link		http://milesj.me/code/cakephp/utility
  */
 
 App::uses('Component', 'Controller');
+App::import('Vendor', 'Utility.TypeConverter');
 
-use Titon\Utility\Converter;
-
-/**
- * A CakePHP Component that will automatically handle and render AJAX calls and apply the appropriate returned format and headers.
- */
 class AjaxHandlerComponent extends Component {
 
 	/**
 	 * Components.
 	 *
+	 * @access public
 	 * @var array
 	 */
 	public $components = array('RequestHandler');
@@ -24,6 +26,7 @@ class AjaxHandlerComponent extends Component {
 	/**
 	 * Controller instance.
 	 *
+	 * @access public
 	 * @var Controller
 	 */
 	public $controller;
@@ -31,6 +34,7 @@ class AjaxHandlerComponent extends Component {
 	/**
 	 * Should we allow remote AJAX calls.
 	 *
+	 * @access public
 	 * @var boolean
 	 */
 	public $allowRemote = false;
@@ -38,6 +42,7 @@ class AjaxHandlerComponent extends Component {
 	/**
 	 * A user given code associated with failure / success messages.
 	 *
+	 * @access protected
 	 * @var int
 	 */
 	protected $_code;
@@ -45,6 +50,7 @@ class AjaxHandlerComponent extends Component {
 	/**
 	 * Contains the success messages / errors.
 	 *
+	 * @access protected
 	 * @var array
 	 */
 	protected $_data;
@@ -52,6 +58,7 @@ class AjaxHandlerComponent extends Component {
 	/**
 	 * Which actions are handled as AJAX.
 	 *
+	 * @access protected
 	 * @var array
 	 */
 	protected $_handled = array();
@@ -59,6 +66,7 @@ class AjaxHandlerComponent extends Component {
 	/**
 	 * Determines if the AJAX call was a success or failure.
 	 *
+	 * @access protected
 	 * @var boolean
 	 */
 	protected $_success = false;
@@ -66,6 +74,7 @@ class AjaxHandlerComponent extends Component {
 	/**
 	 * Load the Controller object.
 	 *
+	 * @access public
 	 * @param Controller $controller
 	 * @return void
 	 */
@@ -95,6 +104,7 @@ class AjaxHandlerComponent extends Component {
 	/**
 	 * Determine if the action is an AJAX action and handle it.
 	 *
+	 * @access public
 	 * @param Controller $controller
 	 * @return void
 	 */
@@ -115,6 +125,7 @@ class AjaxHandlerComponent extends Component {
 	/**
 	 * A list of actions that are handled as an AJAX call.
 	 *
+	 * @access public
 	 * @return void
 	 */
 	public function handle() {
@@ -130,6 +141,7 @@ class AjaxHandlerComponent extends Component {
 	/**
 	 * Respond the AJAX call with the gathered data.
 	 *
+	 * @access public
 	 * @param string $type
 	 * @param array $response
 	 * @return void
@@ -160,6 +172,7 @@ class AjaxHandlerComponent extends Component {
 	/**
 	 * Handle the response as a success or failure alongside a message or error.
 	 *
+	 * @access public
 	 * @param boolean $success
 	 * @param mixed $data
 	 * @param mixed $code
@@ -174,6 +187,7 @@ class AjaxHandlerComponent extends Component {
 	/**
 	 * Format the response into the right content type.
 	 *
+	 * @access protected
 	 * @param string $type
 	 * @return string
 	 */
@@ -189,10 +203,10 @@ class AjaxHandlerComponent extends Component {
 
 		switch (strtolower($type)) {
 			case 'json':
-				$format = Converter::toJson($response);
+				$format = TypeConverter::toJson($response);
 			break;
 			case 'xml':
-				$format = Converter::toXml($response);
+				$format = TypeConverter::toXml($response);
 			break;
 			case 'html';
 			case 'text':
