@@ -57,7 +57,11 @@ class CacheableBehavior extends ModelBehavior {
 	 * @var array
 	 */
 	protected $_defaults = array(
+		'engine' => 'File',
 		'cacheConfig' => 'sql',
+		'user' => '',
+		'password' => '',
+		'servers' => array(),
 		'dbConfig' => 'shim',
 		'expires' => '+5 minutes',
 		'prefix' => '',
@@ -135,13 +139,21 @@ class CacheableBehavior extends ModelBehavior {
 				$folder->create($cachePath, 0777);
 			}
 
-			Cache::config($settings['cacheConfig'], array(
-				'engine'	=> 'File',
-				'serialize'	=> true,
+			$cache_values = array(
+				'engine'	=> $settings['engine'],
 				'prefix'	=> '',
-				'path'		=> $cachePath,
 				'duration'	=> $settings['expires']
-			));
+			);
+			if($settings['engine'] === 'File'){
+				$cache_values['serialize'] = true;
+				$cache_values['path'] = $cachePath;
+			}else{
+				$cache_values['user'] = $settings['user'];
+				$cache_values['password'] = $settings['password'];
+				$cache_values['servers'] = $settings['servers'];
+			}
+
+			Cache::config($settings['cacheConfig'], $cache_values);
 		}
 	}
 
