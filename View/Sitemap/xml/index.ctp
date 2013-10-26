@@ -3,7 +3,11 @@
 // Also use echo because <? short tags will explode if enabled
 
 echo '<?xml version="1.0" encoding="UTF-8"?>';
-echo '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9" xmlns:image="http://www.google.com/schemas/sitemap-image/1.1">';
+if (!$imageheader){
+	echo '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">';
+} else {
+	echo '<urlset xmlns="http://www.google.com/schemas/sitemap-images/0.9" xmlns:image="http://www.google.com/schemas/sitemap-image/1.1">';
+}
 
 if ($sitemap) {
     foreach ($sitemap as $item) {

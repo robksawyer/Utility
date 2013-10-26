@@ -24,11 +24,17 @@ class SitemapController extends AppController {
      * Loop through active models and generate sitemap data.
      * When using a model, you should update your routes to look something like:
      * Router::connect('/sitemap-places', array('plugin' => 'utility', 'controller' => 'sitemap', 'action' => 'index', 'ext' => 'json', 'Place'));
-     * @param $model The model to generate a sitemap for
+     * @param string $model The model to generate a sitemap for
+     * @param boolean $imageheader Whether or not to use the image xml header
      * @return void 
      */
-    public function index($model = null) {
+    public function index($model = null, $imageheader = false) {
         $sitemap = array();
+
+        if($imageheader){
+            $this->set(compact('imageheader'));
+        }
+
         if( empty( $model ) ){
             
             $models = App::objects('Model');
