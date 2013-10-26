@@ -5,13 +5,13 @@
  * @link        http://milesj.me/code/cakephp/utility
  */
 
-App::uses('Controller', 'Controller');
+App::uses('AppController', 'Controller');
 App::uses('CakeTime', 'Utility');
 
 /**
  * Handles sitemap generation for search engines.
  */
-class SitemapController extends Controller {
+class SitemapController extends AppController {
 
     /**
      * Components.
@@ -21,25 +21,23 @@ class SitemapController extends Controller {
     public $components = array('RequestHandler');
 
     /**
-     * Loop through active controllers and generate sitemap data.
+     * Loop through active models and generate sitemap data.
      */
     public function index() {
-        $controllers = App::objects('Controller');
+        $models = App::objects('Model');
         $sitemap = array();
 
         // Fetch sitemap data
-        foreach ($controllers as $controller) {
-            App::uses($controller, 'Controller');
+        foreach ($models as $model) {
 
-            // Don't load AppController's, SitemapController or Controller's who can't be found
-            if (strpos($controller, 'AppController') !== false || $controller === 'SitemapController' || !App::load($controller)) {
+            // Don't load AppModel's, Model's who can't be found
+            if ( strpos($controller, 'AppModel') !== false ) {
                 continue;
             }
 
-            $instance = new $controller($this->request, $this->response);
-            $instance->constructClasses();
+            $instance = ClassRegistry::init($model);
 
-            if (method_exists($instance, '_generateSitemap')) {
+            if ( method_exists($instance, '_generateSitemap') ) {
                 if ($data = $instance->_generateSitemap()) {
                     $sitemap = array_merge($sitemap, $data);
                 }
@@ -49,6 +47,7 @@ class SitemapController extends Controller {
         // Cleanup sitemap
         if ($sitemap) {
             foreach ($sitemap as &$item) {
+
                 if (is_array($item['loc'])) {
                     if (!isset($item['loc']['plugin'])) {
                         $item['loc']['plugin'] = false;
