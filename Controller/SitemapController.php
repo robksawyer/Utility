@@ -22,16 +22,38 @@ class SitemapController extends AppController {
 
     /**
      * Loop through active models and generate sitemap data.
+     * When using a model, you should update your routes to look something like:
+     * Router::connect('/sitemap-places', array('plugin' => 'utility', 'controller' => 'sitemap', 'action' => 'index', 'ext' => 'json', 'Place'));
+     * @param $model The model to generate a sitemap for
+     * @return void 
      */
-    public function index() {
-        $models = App::objects('Model');
+    public function index($model = null) {
         $sitemap = array();
+        if( empty( $model ) ){
+            
+            $models = App::objects('Model');
 
-        // Fetch sitemap data
-        foreach ($models as $model) {
+            // Fetch sitemap data for all models
+            foreach ($models as $model) {
 
-            // Don't load AppModel's, Model's who can't be found
-            if ( strpos($controller, 'AppModel') !== false ) {
+                // Don't load AppModel's, Model's who can't be found
+                if ( strpos($model, 'AppModel') !== false ) {
+                    continue;
+                }
+
+                $instance = ClassRegistry::init($model);
+
+                if ( method_exists($instance, '_generateSitemap') ) {
+                    if ($data = $instance->_generateSitemap()) {
+                        $sitemap = array_merge($sitemap, $data);
+                    }
+                }
+            }
+
+        } else {
+
+             // Don't load AppModel's, Model's who can't be found
+            if ( strpos($model, 'AppModel') !== false ) {
                 continue;
             }
 
@@ -42,6 +64,7 @@ class SitemapController extends AppController {
                     $sitemap = array_merge($sitemap, $data);
                 }
             }
+
         }
 
         // Cleanup sitemap
