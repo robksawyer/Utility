@@ -1,148 +1,178 @@
 <?php
 /**
- * BreadcrumbHelper
- *
- * A CakePHP Helper that provides basic functionality for generating breadcrumb lists.
- * Can be used to grab the first or last crumb, or generate a string of crumbs for use in page titles.
- *
- * @version		1.0.0
- * @copyright	Copyright 2006-2012, Miles Johnson - http://milesj.me
- * @license		http://opensource.org/licenses/mit-license.php - Licensed under the MIT License
- * @link		http://milesj.me/code/cakephp/utility
+ * @copyright   2006-2013, Miles Johnson - http://milesj.me
+ * @license     https://github.com/milesj/utility/blob/master/license.md
+ * @link        http://milesj.me/code/cakephp/utility
  */
 
 App::uses('Helper', 'View/Helper');
 
-class BreadcrumbHelper extends Helper {
+    /**
+     * Helpers.
+     *
+     * @type array
+     */
+    public $helpers = array('Utility.OpenGraph');
 
-	/**
-	 * List of breadcrumbs.
-	 *
-	 * @access protected
-	 * @var array
-	 */
-	protected $_crumbs = array();
+    /**
+     * List of breadcrumbs.
+     *
+     * @type array
+     */
+    protected $_crumbs = array();
 
-	/**
-	 * Add a breadcrumb to the list.
-	 *
-	 * @access public
-	 * @param string $title
-	 * @param string|array $url
-	 * @param array $options
-	 * @return BreadcrumbHelper
-	 */
-	public function add($title, $url, array $options = array()) {
-		$this->_crumbs[] = array(
-			'title' => $title,
-			'url' => $url,
-			'options' => $options
-		);
+    /**
+     * Add a breadcrumb to the list.
+     *
+     * @param string $title
+     * @param string|array $url
+     * @param array $options
+     * @return BreadcrumbHelper
+     */
+    public function add($title, $url, array $options = array()) {
+        $this->append($title, $url, $options);
 
-		return $this;
-	}
+        return $this;
+    }
 
-	/**
-	 * Return the list of breadcrumbs.
-	 *
-	 * @access public
-	 * @param string $key
-	 * @return array
-	 */
-	public function get($key = '') {
-		if (!$key) {
-			return $this->_crumbs;
-		}
+    /**
+     * Add a breadcrumb to the end of the list.
+     *
+     * @param string $title
+     * @param string|array $url
+     * @param array $options
+     * @return BreadcrumbHelper
+     */
+    public function append($title, $url, array $options = array()) {
+        $this->_crumbs[] = array(
+            'title' => strip_tags($title),
+            'url' => $url,
+            'options' => $options
+        );
 
-		$crumbs = array();
+        $this->OpenGraph->title($this->pageTitle(null, array('reverse' => true)));
+        $this->OpenGraph->uri($url);
 
-		foreach ($this->_crumbs as $crumb) {
-			$crumbs[] = isset($crumb[$key]) ? $crumb[$key] : null;
-		}
+        return $this;
+    }
 
-		return $crumbs;
-	}
+    /**
+     * Add a breadcrumb to the beginning of the list.
+     *
+     * @param string $title
+     * @param string|array $url
+     * @param array $options
+     * @return BreadcrumbHelper
+     */
+    public function prepend($title, $url, array $options = array()) {
+        array_unshift($this->_crumbs, array(
+            'title' => strip_tags($title),
+            'url' => $url,
+            'options' => $options
+        ));
 
-	/**
-	 * Return the first crumb in the list.
-	 *
-	 * @access public
-	 * @param string $key
-	 * @return mixed
-	 */
-	public function first($key = '') {
-		$crumbs = $this->get($key);
+        $this->OpenGraph->title($this->pageTitle(null, array('reverse' => true)));
+        $this->OpenGraph->uri($url);
 
-		if (!$crumbs) {
-			return null;
-		}
+        return $this;
+    }
 
-		$first = array_slice($crumbs, 0, 1);
+    /**
+     * Return the list of breadcrumbs.
+     *
+     * @param string $key
+     * @return array
+     */
+    public function get($key = '') {
+        if (!$key) {
+            return $this->_crumbs;
+        }
 
-		return $first[0];
-	}
+        $crumbs = array();
 
-	/**
-	 * Return the last crumb in the list.
-	 *
-	 * @access public
-	 * @param string $key
-	 * @return mixed
-	 */
-	public function last($key = '') {
-		$crumbs = $this->get($key);
+        foreach ($this->_crumbs as $crumb) {
+            $crumbs[] = isset($crumb[$key]) ? $crumb[$key] : null;
+        }
 
-		if (!$crumbs) {
-			return null;
-		}
+        return $crumbs;
+    }
 
-		$last = array_slice($crumbs, -1);
+    /**
+     * Return the first crumb in the list.
+     *
+     * @param string $key
+     * @return mixed
+     */
+    public function first($key = '') {
+        $crumbs = $this->get($key);
 
-		return $last[0];
-	}
+        if (!$crumbs) {
+            return null;
+        }
 
-	/**
-	 * Generate a page title based off the current crumbs.
-	 *
-	 * @access public
-	 * @param string $base
-	 * @param array $options
-	 * @return string
-	 */
-	public function pageTitle($base = '', array $options = array()) {
-		$options = $options + array(
-			'reverse' => false,
-			'depth' => 3,
-			'separator' => ' - '
-		);
+        $first = array_slice($crumbs, 0, 1);
 
-		$crumbs = $this->get('title');
-		$count = count($crumbs);
-		$title = array();
+        return $first[0];
+    }
 
-		if ($count) {
-			if ($options['depth'] && $count > $options['depth']) {
-				$depth = $options['depth'] - 1;
-				$title = array_slice($crumbs, -$depth);
-				array_unshift($title, array_shift($crumbs));
+    /**
+     * Return the last crumb in the list.
+     *
+     * @param string $key
+     * @return mixed
+     */
+    public function last($key = '') {
+        $crumbs = $this->get($key);
 
-			} else {
-				$title = $crumbs;
-			}
+        if (!$crumbs) {
+            return null;
+        }
 
-		} else if ($pageTitle = $this->_View->get('title_for_layout')) {
-			$title[] = $pageTitle;
-		}
+        $last = array_slice($crumbs, -1);
 
-		if ($base) {
-			array_unshift($title, $base);
-		}
+        return $last[0];
+    }
 
-		if ($options['reverse']) {
-			$title = array_reverse($title);
-		}
+    /**
+     * Generate a page title based off the current crumbs.
+     *
+     * @param string $base
+     * @param array $options
+     * @return string
+     */
+    public function pageTitle($base = '', array $options = array()) {
+        $options = $options + array(
+            'reverse' => false,
+            'depth' => 3,
+            'separator' => ' - '
+        );
 
-		return implode($options['separator'], $title);
-	}
+        $crumbs = $this->get('title');
+        $count = count($crumbs);
+        $title = array();
+
+        if ($count) {
+            if ($options['depth'] && $count > $options['depth']) {
+                $title = array_slice($crumbs, -$options['depth']);
+                array_unshift($title, array_shift($crumbs));
+
+            } else {
+                $title = $crumbs;
+            }
+
+        } else if ($pageTitle = $this->_View->get('title_for_layout')) {
+            $title[] = $pageTitle;
+        }
+
+        if ($options['reverse']) {
+            $title = array_reverse($title);
+        }
+
+        if ($base) {
+            array_unshift($title, $base);
+        }
+
+        return implode($options['separator'], array_unique($title));
+    }
 
 }

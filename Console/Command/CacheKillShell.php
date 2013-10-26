@@ -1,19 +1,8 @@
 <?php
 /**
- * CacheKillShell
- *
- * Deletes a single item or all items within a cache configuration.
- *
- * {{{
- * 		Command line usage:
- *
- *		cake Utility.cache_kill
- * }}}
- *
- * @version		2.0.0
- * @copyright	Copyright 2006-2012, Miles Johnson - http://milesj.me
- * @license		http://opensource.org/licenses/mit-license.php - Licensed under the MIT License
- * @link		http://milesj.me/code/cakephp/utility
+ * @copyright   2006-2013, Miles Johnson - http://milesj.me
+ * @license     https://github.com/milesj/utility/blob/master/license.md
+ * @link        http://milesj.me/code/cakephp/utility
  */
 
 App::uses('Shell', 'Console');
@@ -23,32 +12,75 @@ Configure::write('debug', 2);
 
 class CacheKillShell extends Shell {
 
-	/**
-	 * Gather params and clear cache.
-	 *
-	 * @access public
-	 * @return void
-	 */
-	public function main() {
-		$this->out('Shell: CacheKill v2.0.0');
-		$this->out('About: Deletes cached entries within a configuration');
-		$this->hr(1);
+    /**
+     * Display help info.
+     */
+    public function main() {
+        $this->out($this->OptionParser->help());
+    }
 
-		$key = isset($this->params['key']) ? $this->params['key'] : null;
-		$check = isset($this->params['check']) ? (bool) $this->params['check'] : false;
-		$config = isset($this->params['config']) ? $this->params['config'] : 'default';
+    /**
+     * Delete APC cache.
+     */
+    public function apc() {
+        if (!extension_loaded('apc')) {
+            $this->err('<error>APC extension not loaded</error>');
+            return;
+        }
 
-		if ($key) {
-			$this->out(sprintf('Killing %s in %s...', $key, $config));
-			Cache::delete($key, $config);
+        apc_clear_cache();
+        apc_clear_cache('user');
+        apc_clear_cache('opcode');
 
-		} else {
-			$this->out(sprintf('Killing all in %s...', $config));
-			Cache::clear($check, $config);
-		}
+        $this->out('<info>APC cache cleared!</info>');
+    }
 
-		$this->hr(1);
-		$this->out('Cache murdered!');
-	}
+    /**
+     * Delete CakePHP cache.
+     */
+    public function core() {
+        $key = isset($this->params['key']) ? $this->params['key'] : null;
+        $config = isset($this->params['config']) ? $this->params['config'] : 'default';
+
+        if ($key) {
+            $this->out(sprintf('Clearing %s in %s...', $key, $config));
+            Cache::delete($key, $config);
+
+        } else {
+            $this->out(sprintf('Clearing all in %s...', $config));
+            Cache::clear(false, $config);
+        }
+
+        $this->out('<info>Cache cleared!</info>');
+    }
+
+    /**
+     * Add sub-commands.
+     *
+     * @return ConsoleOptionParser
+     */
+    public function getOptionParser() {
+        $parser = parent::getOptionParser();
+
+        $parser->addSubcommand('core', array(
+            'help' => 'Delete all cache within CakePHP',
+            'parser' => array(
+                'description' => 'This command will clear all cache in CakePHP using the Cache engine settings.',
+                'options' => array(
+                    'config' => array('short' => 'c', 'help' => 'Cache Config', 'default' => 'default'),
+                    'key' => array('short' => 'k', 'help' => 'Cache Key', 'default' => '')
+                )
+            )
+        ));
+
+        $parser->addSubcommand('apc', array(
+            'help' => 'Delete all cache within APC',
+            'parser' => array(
+                'description' => 'This command will clear all cache in APC, including user, system and opcode caches.'
+            )
+        ));
+
+        return $parser;
+    }
 
 }
